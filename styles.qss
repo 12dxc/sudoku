@@ -1,0 +1,119 @@
+/* ============================================================
+   styles.qss —— 数独游戏全局样式表
+   由 main.cpp 通过资源 :/styles.qss 加载
+   ============================================================ */
+
+/* ---------- 主窗口 ---------- */
+QMainWindow,
+QWidget#centralwidget {
+    background: #fafafa;
+}
+
+/* ---------- 标题 ---------- */
+#titleLabel {
+    font-size: 24pt;
+    font-weight: bold;
+    color: #263238;
+    padding: 4px;
+}
+
+/* ---------- 棋盘容器 ---------- */
+#boardFrame {
+    background: #eceff1;
+    border: none;
+    border-radius: 10px;
+}
+
+/* ---------- 按钮 ---------- */
+QPushButton {
+    background: #1976d2;
+    color: white;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 18px;
+    font-size: 11pt;
+}
+QPushButton:hover   { background: #1e88e5; }
+QPushButton:pressed { background: #1565c0; }
+QPushButton:disabled {
+    background: #bdbdbd;
+    color: #f5f5f5;
+}
+
+/* ---------- 难度分段按钮（仅 QPushButton[difficulty="true"]） ---------- */
+#diffLabel {
+    font-size: 11pt;
+    color: #455a64;
+}
+QPushButton[difficulty="true"] {
+    background: white;
+    color: #455a64;
+    border: 1px solid #b0bec5;
+    border-radius: 6px;
+    padding: 3px 10px;          /* 比「新游戏」(7px 18px) 明显更小 */
+    font-size: 11pt;            /* 与「难度：」标签同字号 */
+}
+QPushButton[difficulty="true"]:hover   { background: #e3f2fd; }
+QPushButton[difficulty="true"]:checked {
+    background: #1976d2;
+    color: white;
+    border-color: #1976d2;
+}
+QPushButton[difficulty="true"]:checked:hover { background: #1e88e5; }
+
+/* ---------- 新游戏：主操作（绿色强调） ---------- */
+#newGameBtn {
+    background: #2e7d32;
+    font-weight: bold;
+}
+#newGameBtn:hover   { background: #388e3c; }
+#newGameBtn:pressed { background: #1b5e20; }
+
+/* ---------- 计时器 ---------- */
+#timerLabel {
+    font-size: 14pt;
+    font-weight: bold;
+    color: #37474f;
+}
+
+/* ---------- 状态文字 ---------- */
+#statusLabel {
+    color: #455a64;
+    font-size: 12pt;
+}
+
+/* ============================================================
+   棋盘格子 SudokuCell（QLineEdit 子类）
+   状态由动态属性驱动：given / error / thickLeft~thickBottom
+   ============================================================ */
+SudokuCell {
+    background: white;
+    color: #1565c0;              /* 玩家输入的数字 */
+    border: 1px solid #9e9e9e;   /* 普通细线 */
+    border-radius: 2px;
+    padding: 0px;
+    font-size: 18pt;
+}
+
+/* 开局给定的固定数字：黑色粗体 */
+SudokuCell[given="true"] {
+    color: #212121;
+    font-weight: bold;
+}
+
+/* 错误数字：红字红底 */
+SudokuCell[error="true"] {
+    color: #c62828;
+    background: #ffcdd2;
+    font-weight: bold;
+}
+
+/* 聚焦格淡蓝背景（组合选择器保证错误格聚焦时保持红底） */
+SudokuCell:focus { background: #e3f2fd; }
+SudokuCell[error="true"]:focus { background: #ffcdd2; }
+
+/* 3x3 宫边界：粗线 */
+SudokuCell[thickLeft="true"]   { border-left: 2px solid #37474f; }
+SudokuCell[thickTop="true"]    { border-top: 2px solid #37474f; }
+SudokuCell[thickRight="true"]  { border-right: 2px solid #37474f; }
+SudokuCell[thickBottom="true"] { border-bottom: 2px solid #37474f; }

@@ -1,0 +1,36 @@
+# 构建产物
+build/
+*.o
+*.obj
+*.exe
+*.dll
+*.a
+*.lib
+
+# CMake 临时文件
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+Makefile
+compile_commands.json
+.cmake/
+
+# Qt 自动生成文件
+moc_*.cpp
+qrc_*.cpp
+ui_*.h
+
+# 临时日志
+*.log
+
+# 编辑器 / IDE
+.vscode/
+.idea/
+*.user
+CMakeLists.txt.user
+
+# 开发脚本（mockups 下的临时截图/渲染脚本，不随仓库提交）
+mockups/*.ps1
+mockups/*.cpp
+mockups/*.qss

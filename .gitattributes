@@ -1,0 +1,6 @@
+# 统一行尾：源码按文本规范化（仓库内 LF，检出随平台）
+* text=auto
+# 二进制文件保持原样
+*.png binary
+*.exe binary
+*.dll binary
