@@ -52,7 +52,7 @@ ctest --test-dir build
 ├── screenshots/sudoku.png      # 界面截图
 ├── src/
 │   ├── mainwindow.ui           # 主窗口布局（Qt Designer 格式）
-│   ├── sudokuboard.h/.cpp      # 数独核心逻辑（纯 C++，无 Qt 依赖）
+│   ├── sudokuboard.h/.cpp      # 数独核心逻辑（纯 C++，仅依赖 QtGlobal 的 Q_ASSERT）
 │   │                           #   生成 / 求解 / 唯一解验证 / 冲突检测 / 撤销重做
 │   ├── sudokucell.h/.cpp       # 棋盘单元格控件（QSS 属性选择器驱动样式）
 │   ├── mainwindow.h/.cpp       # 主窗口逻辑（通过 ui_-> 访问 .ui 控件）

@@ -1,18 +1,20 @@
 #pragma once
 
+#include <QtGlobal>
+
 #include <array>
 #include <optional>
 #include <utility>
 #include <vector>
 
 /**
- * SudokuBoard —— 数独核心逻辑（纯 C++，不依赖 Qt）。
+ * SudokuBoard —— 数独核心逻辑（纯 C++，仅依赖 QtGlobal 的 Q_ASSERT 做越界断言）。
  *
  * 职责：
  *  - 生成唯一解的谜题（三种难度）
  *  - 求解（回溯算法）
  *  - 冲突检测 / 完成检测
- *  - 提示（找空格的正确值）
+ *  - 提示（返回第一个空格坐标）
  *  - 撤销 / 重做历史（Move 栈）
  *
  * 棋盘约定：0 表示空格，1..9 为数字。坐标均为 0..8。
@@ -30,9 +32,15 @@ public:
     void generate(Difficulty d);
 
     // ---------- 读取 ----------
-    int cell(int row, int col) const { return current_[row][col]; }
+    int cell(int row, int col) const {
+        Q_ASSERT(row >= 0 && row < Size && col >= 0 && col < Size);
+        return current_[row][col];
+    }
     /** 该格是否为开局给出的固定数字。 */
-    bool isGiven(int row, int col) const { return given_[row][col]; }
+    bool isGiven(int row, int col) const {
+        Q_ASSERT(row >= 0 && row < Size && col >= 0 && col < Size);
+        return given_[row][col];
+    }
     const Grid &solution() const { return solution_; }
     Difficulty difficulty() const { return difficulty_; }
     /** 开局给出的数字个数（线索数）。 */
@@ -48,7 +56,7 @@ public:
     /** 棋盘是否已全部填完且正确。 */
     bool isSolved() const;
 
-    /** 返回第一个空格的正确数字（用于提示）。 */
+    /** 返回第一个空格的坐标（用于提示）；其正确数字由调用方通过 solution() 查询。 */
     std::optional<std::pair<int, int>> hintCell() const;
 
     // ---------- 撤销 / 重做 ----------
@@ -59,8 +67,10 @@ public:
 
     bool canUndo() const { return !undoStack_.empty(); }
     bool canRedo() const { return !redoStack_.empty(); }
-    Move undo();
-    Move redo();
+    /** 撤销最近一步并应用到棋盘；栈空时返回 std::nullopt。 */
+    std::optional<Move> undo();
+    /** 重做最近一步并应用到棋盘；栈空时返回 std::nullopt。 */
+    std::optional<Move> redo();
     void clearHistory();
     std::size_t undoCount() const { return undoStack_.size(); }
     std::size_t redoCount() const { return redoStack_.size(); }

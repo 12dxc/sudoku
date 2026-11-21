@@ -5,23 +5,18 @@
 
 namespace {
 
-constexpr int kRegion[SudokuBoard::Size][SudokuBoard::Size] = {
-    {0, 0, 0, 1, 1, 1, 2, 2, 2},
-    {0, 0, 0, 1, 1, 1, 2, 2, 2},
-    {0, 0, 0, 1, 1, 1, 2, 2, 2},
-    {3, 3, 3, 4, 4, 4, 5, 5, 5},
-    {3, 3, 3, 4, 4, 4, 5, 5, 5},
-    {3, 3, 3, 4, 4, 4, 5, 5, 5},
-    {6, 6, 6, 7, 7, 7, 8, 8, 8},
-    {6, 6, 6, 7, 7, 7, 8, 8, 8},
-    {6, 6, 6, 7, 7, 7, 8, 8, 8},
-};
-
-/** 返回随机打乱的 1..9 序列。 */
-std::vector<int> shuffledDigits(std::mt19937 &rng) {
-    std::vector<int> digits{1, 2, 3, 4, 5, 6, 7, 8, 9};
-    std::shuffle(digits.begin(), digits.end(), rng);
-    return digits;
+/** value 放在 (row,col) 是否不与 g 中已有数字冲突（行、列、宫统一检查）。
+ *  g 中该格自身也参与检查；需要忽略该格旧值时（见 conflicts），调用方先将其清零。 */
+bool canPlace(const SudokuBoard::Grid &g, int row, int col, int value) {
+    for (int i = 0; i < SudokuBoard::Size; ++i)
+        if (g[row][i] == value || g[i][col] == value)
+            return false;
+    const int rr = row / 3 * 3, cc = col / 3 * 3;
+    for (int i = 0; i < 3; ++i)
+        for (int j = 0; j < 3; ++j)
+            if (g[rr + i][cc + j] == value)
+                return false;
+    return true;
 }
 
 }  // namespace
@@ -31,7 +26,7 @@ std::vector<int> shuffledDigits(std::mt19937 &rng) {
 // ---------------------------------------------------------------------------
 
 bool SudokuBoard::solve(Grid &g) {
-    // 找第一个空格
+    // MRV：找候选值最少的空格
     int bestRow = -1, bestCol = -1;
     int bestCandidates = 10;
     for (int r = 0; r < Size; ++r) {
@@ -39,22 +34,11 @@ bool SudokuBoard::solve(Grid &g) {
             if (g[r][c] != 0)
                 continue;
             int candidates = 0;
-            for (int v = 1; v <= 9; ++v) {
-                bool ok = true;
-                for (int i = 0; i < Size && ok; ++i) {
-                    if (g[r][i] == v || g[i][c] == v)
-                        ok = false;
-                }
-                if (ok) {
-                    const int rr = kRegion[r][c] / 3 * 3, cc = kRegion[r][c] % 3 * 3;
-                    for (int i = 0; i < 3 && ok; ++i)
-                        for (int j = 0; j < 3 && ok; ++j)
-                            if (g[rr + i][cc + j] == v)
-                                ok = false;
-                }
-                if (ok)
+            for (int v = 1; v <= 9; ++v)
+                if (canPlace(g, r, c, v))
                     ++candidates;
-            }
+            if (candidates == 0)
+                return false;  // 某空格无候选值，死局
             if (candidates < bestCandidates) {
                 bestCandidates = candidates;
                 bestRow = r;
@@ -71,19 +55,7 @@ bool SudokuBoard::solve(Grid &g) {
         return true;  // 没有空格，完成
 
     for (int v = 1; v <= 9; ++v) {
-        bool ok = true;
-        for (int i = 0; i < Size && ok; ++i)
-            if (g[bestRow][i] == v || g[i][bestCol] == v)
-                ok = false;
-        if (ok) {
-            const int rr = kRegion[bestRow][bestCol] / 3 * 3;
-            const int cc = kRegion[bestRow][bestCol] % 3 * 3;
-            for (int i = 0; i < 3 && ok; ++i)
-                for (int j = 0; j < 3 && ok; ++j)
-                    if (g[rr + i][cc + j] == v)
-                        ok = false;
-        }
-        if (!ok)
+        if (!canPlace(g, bestRow, bestCol, v))
             continue;
         g[bestRow][bestCol] = v;
         if (solve(g))
@@ -144,7 +116,7 @@ int SudokuBoard::countSolutions(const Grid &g, int limit) {
                         continue;
                     int cand = 0;
                     for (int v = 1; v <= 9; ++v)
-                        if (canPlace(r, c, v))
+                        if (canPlace(g, r, c, v))
                             ++cand;
                     if (cand < best) {
                         best = cand;
@@ -157,7 +129,7 @@ int SudokuBoard::countSolutions(const Grid &g, int limit) {
                 return count >= limit;
             }
             for (int v = 1; v <= 9; ++v) {
-                if (!canPlace(br, bc, v))
+                if (!canPlace(g, br, bc, v))
                     continue;
                 g[br][bc] = v;
                 if (run())
@@ -165,17 +137,6 @@ int SudokuBoard::countSolutions(const Grid &g, int limit) {
                 g[br][bc] = 0;
             }
             return false;
-        }
-        bool canPlace(int r, int c, int v) const {
-            for (int i = 0; i < SudokuBoard::Size; ++i)
-                if (g[r][i] == v || g[i][c] == v)
-                    return false;
-            const int rr = r / 3 * 3, cc = c / 3 * 3;
-            for (int i = 0; i < 3; ++i)
-                for (int j = 0; j < 3; ++j)
-                    if (g[rr + i][cc + j] == v)
-                        return false;
-            return true;
         }
     } counter{copy, limit, count};
 
@@ -218,11 +179,9 @@ void SudokuBoard::generateSolution() {
     std::mt19937 rng{std::random_device{}()};
     Grid g{};
 
-    // 随机化填充：随机打乱数字顺序再回溯，保证每次生成的解不同
-    std::vector<int> digits = shuffledDigits(rng);
+    // 随机化填充：每个空格按随机顺序尝试候选数字，保证每次生成的解不同
     struct Filler {
         Grid &g;
-        const std::vector<int> &digits;
         std::mt19937 &rng;
         bool run() {
             int br = -1, bc = -1;
@@ -239,22 +198,14 @@ void SudokuBoard::generateSolution() {
             }
             if (br < 0)
                 return true;
-            // 随机顺序尝试候选数字
-            std::vector<int> order = digits;
-            std::shuffle(order.begin(), order.end(), rng);
+            // 栈上 Fisher-Yates 洗牌 1..9，避免递归内堆分配
+            std::array<int, Size> order = {1, 2, 3, 4, 5, 6, 7, 8, 9};
+            for (int i = Size - 1; i > 0; --i) {
+                std::uniform_int_distribution<int> dist(0, i);
+                std::swap(order[i], order[dist(rng)]);
+            }
             for (int v : order) {
-                bool ok = true;
-                for (int i = 0; i < Size && ok; ++i)
-                    if (g[br][i] == v || g[i][bc] == v)
-                        ok = false;
-                if (ok) {
-                    const int rr = br / 3 * 3, cc = bc / 3 * 3;
-                    for (int i = 0; i < 3 && ok; ++i)
-                        for (int j = 0; j < 3 && ok; ++j)
-                            if (g[rr + i][cc + j] == v)
-                                ok = false;
-                }
-                if (!ok)
+                if (!canPlace(g, br, bc, v))
                     continue;
                 g[br][bc] = v;
                 if (run())
@@ -263,7 +214,7 @@ void SudokuBoard::generateSolution() {
             }
             return false;
         }
-    } filler{g, digits, rng};
+    } filler{g, rng};
 
     if (!filler.run()) {
         // 理论上不会发生；兜底用确定性求解
@@ -288,17 +239,31 @@ void SudokuBoard::carveHoles(int targetClues) {
 
     int holes = 0;
     const int targetHoles = Size * Size - targetClues;
-    for (auto [r, c] : cells) {
-        if (holes >= targetHoles)
-            break;
-        const int saved = puzzle_[r][c];
-        puzzle_[r][c] = 0;
-        if (hasUniqueSolution(puzzle_)) {
-            ++holes;
-        } else {
-            puzzle_[r][c] = saved;  // 挖掉会破坏唯一解，回填
+
+    // 多轮迭代挖洞：单遍贪心挖失败的格不再重试会导致达不到难度目标；
+    // 每轮重新洗牌重试之前失败的格，直到达到目标线索数或整轮无进展。
+    constexpr int kMaxRounds = 100;
+    for (int round = 0; round < kMaxRounds && holes < targetHoles; ++round) {
+        std::shuffle(cells.begin(), cells.end(), rng);
+        bool progressed = false;
+        for (auto [r, c] : cells) {
+            if (holes >= targetHoles)
+                break;
+            if (puzzle_[r][c] == 0)
+                continue;  // 本轮之前已挖掉
+            const int saved = puzzle_[r][c];
+            puzzle_[r][c] = 0;
+            if (hasUniqueSolution(puzzle_)) {
+                ++holes;
+                progressed = true;
+            } else {
+                puzzle_[r][c] = saved;  // 挖掉会破坏唯一解，回填
+            }
         }
+        if (!progressed)
+            break;  // 整轮无进展：剩余格都无法再挖
     }
+
     for (int r = 0; r < Size; ++r)
         for (int c = 0; c < Size; ++c)
             given_[r][c] = puzzle_[r][c] != 0;
@@ -328,9 +293,9 @@ bool SudokuBoard::setCell(int row, int col, int value) {
     return true;
 }
 
-SudokuBoard::Move SudokuBoard::undo() {
+std::optional<SudokuBoard::Move> SudokuBoard::undo() {
     if (undoStack_.empty())
-        return {};
+        return std::nullopt;
     Move m = undoStack_.back();
     undoStack_.pop_back();
     current_[m.row][m.col] = m.from;
@@ -338,9 +303,9 @@ SudokuBoard::Move SudokuBoard::undo() {
     return m;
 }
 
-SudokuBoard::Move SudokuBoard::redo() {
+std::optional<SudokuBoard::Move> SudokuBoard::redo() {
     if (redoStack_.empty())
-        return {};
+        return std::nullopt;
     Move m = redoStack_.back();
     redoStack_.pop_back();
     current_[m.row][m.col] = m.to;
@@ -354,22 +319,12 @@ void SudokuBoard::clearHistory() {
 }
 
 bool SudokuBoard::conflicts(int row, int col, int value) const {
+    Q_ASSERT(row >= 0 && row < Size && col >= 0 && col < Size);
     if (value == 0)
         return false;
-    for (int i = 0; i < Size; ++i) {
-        if (i != col && current_[row][i] == value)
-            return true;
-        if (i != row && current_[i][col] == value)
-            return true;
-    }
-    const int rr = row / 3 * 3, cc = col / 3 * 3;
-    for (int i = 0; i < 3; ++i)
-        for (int j = 0; j < 3; ++j) {
-            const int r = rr + i, c = cc + j;
-            if ((r != row || c != col) && current_[r][c] == value)
-                return true;
-        }
-    return false;
+    Grid g = current_;
+    g[row][col] = 0;  // 忽略该格自身旧值
+    return !canPlace(g, row, col, value);
 }
 
 bool SudokuBoard::isSolved() const {

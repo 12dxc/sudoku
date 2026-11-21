@@ -109,11 +109,15 @@ void TestSudokuBoard::generate_difficultyAffectsClueCount()
     easyClues /= 3;
     mediumClues /= 3;
     hardClues /= 3;
+    // 真正的不变量：难度越高线索越少（先跑数据验证，再断言）
     QVERIFY(easyClues > mediumClues);
     QVERIFY(mediumClues > hardClues);
+    // Easy 目标 42 线索：只挖 39 个洞，多轮挖洞总能达到目标
     QVERIFY(easyClues >= 42);
+    // Medium 目标 32 线索
     QVERIFY(mediumClues >= 30 && mediumClues <= 40);
-    QVERIFY(hardClues <= 32);
+    // Hard 目标 25 线索：多轮挖洞后应稳定接近目标（随机上界，放宽防 flaky）
+    QVERIFY(hardClues <= 30);
 }
 
 void TestSudokuBoard::setCell_and_undoRedo()
@@ -144,22 +148,30 @@ void TestSudokuBoard::setCell_and_undoRedo()
     // 撤销两次
     QVERIFY(b.canUndo());
     auto m1 = b.undo();
-    QCOMPARE(m1.from, correct);
+    QVERIFY(m1.has_value());
+    QCOMPARE(m1->from, correct);
     QCOMPARE(b.cell(r, c), correct);
     auto m2 = b.undo();
-    QCOMPARE(m2.from, 0);
+    QVERIFY(m2.has_value());
+    QCOMPARE(m2->from, 0);
     QCOMPARE(b.cell(r, c), 0);
     QVERIFY(!b.canUndo());
+    // 空栈撤销应返回 std::nullopt
+    QVERIFY(!b.undo().has_value());
 
     // 重做两次
     QVERIFY(b.canRedo());
     auto m3 = b.redo();
-    QCOMPARE(m3.to, correct);
+    QVERIFY(m3.has_value());
+    QCOMPARE(m3->to, correct);
     QCOMPARE(b.cell(r, c), correct);
     auto m4 = b.redo();
-    QCOMPARE(m4.to, wrong);
+    QVERIFY(m4.has_value());
+    QCOMPARE(m4->to, wrong);
     QCOMPARE(b.cell(r, c), wrong);
     QVERIFY(!b.canRedo());
+    // 空栈重做应返回 std::nullopt
+    QVERIFY(!b.redo().has_value());
 }
 
 void TestSudokuBoard::conflicts_detection()
@@ -167,38 +179,38 @@ void TestSudokuBoard::conflicts_detection()
     SudokuBoard b;
     b.generate(SudokuBoard::Difficulty::Easy);
 
-    // 同行找两个空格，放入相同数字应冲突
+    // 同一行找两个空格（Easy 固定 42 线索 = 39 个空格，必有含两个空格的行）
     int r1 = -1, c1 = -1, c2 = -1;
     for (int r = 0; r < 9 && r1 < 0; ++r)
     {
+        int first = -1;
         for (int c = 0; c < 9; ++c)
-            if (b.cell(r, c) == 0)
+        {
+            if (b.cell(r, c) != 0)
+                continue;
+            if (first < 0)
+            {
+                first = c;
+            }
+            else
             {
                 r1 = r;
-                c1 = c;
+                c1 = first;
+                c2 = c;
                 break;
             }
-        if (r1 >= 0)
-        {
-            for (int c = 0; c < 9; ++c)
-                if (c != c1 && b.cell(r1, c) == 0)
-                {
-                    c2 = c;
-                    break;
-                }
         }
     }
     QVERIFY(r1 >= 0 && c2 >= 0);
 
-    b.setCell(r1, c1, 5);
-    QVERIFY(b.conflicts(r1, c2, 5));
-    // 找一个与行/列/宫现有数字都不冲突的值
-    int safe = 0;
-    for (int v = 1; v <= 9 && safe == 0; ++v)
-        if (!b.conflicts(r1, c2, v))
-            safe = v;
-    QVERIFY(safe != 0);
-    QVERIFY(!b.conflicts(r1, c2, safe));
+    // 同行放相同数字应冲突：把 c1 的解放到 c1，c2 处再问该值必与同行冲突
+    // （用解值而非任意值：若随机值恰好是 c2 的解，会堵死 c2 唯一的无冲突值，导致断言随机失败）
+    const int v1 = b.solution()[r1][c1];
+    QVERIFY(b.setCell(r1, c1, v1));
+    QVERIFY(b.conflicts(r1, c2, v1));
+
+    // c2 的解与行/列/宫现有数字都不冲突（其余已填数字均与解一致，确定性成立）
+    QVERIFY(!b.conflicts(r1, c2, b.solution()[r1][c2]));
 }
 
 void TestSudokuBoard::isSolved_checksAgainstSolution()
@@ -219,9 +231,9 @@ void TestSudokuBoard::isSolved_checksAgainstSolution()
     QVERIFY(b.isSolved());
 
     // 改错一个再撤销，应未完成
-    const auto m = b.undo();
+    QVERIFY(b.undo().has_value());
     QVERIFY(!b.isSolved());
-    b.redo();
+    QVERIFY(b.redo().has_value());
     QVERIFY(b.isSolved());
 }
 
