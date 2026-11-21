@@ -152,8 +152,8 @@ void MainWindow::onUndo() {
     const auto m = board_.undo();
     refreshAllCells();
     updateButtons();
-    ui->statusLabel->setText(QString("已撤销 (%1,%2)").arg(m.row + 1).arg(m.col + 1));
-    cells_[m.row][m.col]->setFocus();
+    ui->statusLabel->setText(QString("已撤销 (%1,%2)").arg(m->row + 1).arg(m->col + 1));
+    cells_[m->row][m->col]->setFocus();
 }
 
 void MainWindow::onRedo() {
@@ -162,8 +162,8 @@ void MainWindow::onRedo() {
     const auto m = board_.redo();
     refreshAllCells();
     updateButtons();
-    ui->statusLabel->setText(QString("已重做 (%1,%2)").arg(m.row + 1).arg(m.col + 1));
-    cells_[m.row][m.col]->setFocus();
+    ui->statusLabel->setText(QString("已重做 (%1,%2)").arg(m->row + 1).arg(m->col + 1));
+    cells_[m->row][m->col]->setFocus();
 }
 
 void MainWindow::onCheckAnswer() {
@@ -223,6 +223,8 @@ void MainWindow::refreshCell(int row, int col) {
     const int v = board_.cell(row, col);
     cell->setValue(v);
     cell->setGiven(board_.isGiven(row, col));
+    // 游戏结束后锁定全部格子；新开局按 isGiven 恢复（given 格只读，其余可编辑）
+    cell->setReadOnly(finished_ || board_.isGiven(row, col));
     const bool err = !board_.isGiven(row, col) && v != 0 && board_.conflicts(row, col, v);
     cell->setError(err);
 }
